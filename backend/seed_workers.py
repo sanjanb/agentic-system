@@ -30,7 +30,7 @@ async def seed():
     conn = psycopg.connect(DB_URL, autocommit=True)
     register_vector(conn)
     
-    print("🌱 Starting Local Seeding (Zero Cost)...")
+    print("🌱 Starting Local Seeding ...")
     
     for worker in workers_data:
         # Generate embedding LOCALLY on your CPU/GPU
