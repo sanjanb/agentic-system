@@ -35,50 +35,11 @@ graph TD
 
 We combine **Relational State** (Availability) with **Vector Search** (Skills). This prevents the Agent from assigning a worker who is already busy.
 
-**SQL Schema:**
-
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- Workers Table: Semantic Skills + Real-time Status
-CREATE TABLE workers (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    skills_embedding vector(1536),
-    status TEXT DEFAULT 'available', -- 'available', 'busy', 'offline'
-    last_updated TIMESTAMP DEFAULT NOW()
-);
-
--- Tasks Table: Tracking assignments and preventing race conditions
-CREATE TABLE tasks (
-    id SERIAL PRIMARY KEY,
-    description TEXT,
-    required_skills TEXT,
-    status TEXT DEFAULT 'open', -- 'open', 'assigned', 'completed'
-    assigned_worker_id INTEGER REFERENCES workers(id)
-);
-
-```
-
 ### 3. The "Vault" API (FastAPI + Pydantic AI)
 
 We use **Pydantic AI** tools to allow the Agent to "see" inside the local database.
 
 **Hybrid Search Logic:**
-
-```python
-@agent.tool
-async def get_available_candidates(task_embedding: list[float]):
-    """
-    Finds the top 3 available workers using Hybrid Search.
-    Filters by 'available' status in Postgres BEFORE vector similarity.
-    """
-    # SQL: SELECT id, name FROM workers
-    #      WHERE status = 'available'
-    #      ORDER BY skills_embedding <=> :task_embedding LIMIT 3
-    return candidates
-
-```
 
 ### 4. Critical Design Principles
 
@@ -117,10 +78,9 @@ docker run --name local-vdb -e POSTGRES_PASSWORD=pass -p 5432:5432 -d pgvector/p
 
 ### Operational Checklist
 
-| Status | Component | Action |
-| ------ | --------- | ------ |
-| 🛠️ | Local DB | Run `docker compose up -d` |
-| 🛠️ | Backend API | Run `uv run uvicorn main:app --reload` in the `backend/` directory |
-| 🛠️ | Tunnel | Run `npx localtunnel --port 8000` to get your public URL |
-| 🛠️ | Frontend | Add `LOCAL_VAULT_URL` to your Vercel Environment Variables |
-
+| Status | Component   | Action                                                             |
+| ------ | ----------- | ------------------------------------------------------------------ |
+| 🛠️     | Local DB    | Run `docker compose up -d`                                         |
+| 🛠️     | Backend API | Run `uv run uvicorn main:app --reload` in the `backend/` directory |
+| 🛠️     | Tunnel      | Run `npx localtunnel --port 8000` to get your public URL           |
+| 🛠️     | Frontend    | Add `LOCAL_VAULT_URL` to your Vercel Environment Variables         |
