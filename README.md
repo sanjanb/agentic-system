@@ -30,7 +30,7 @@ graph TD
 
 
 
-### 2. Database Schema (Neon + pgvector)
+### 2. Database Schema [(Neon + pgvector)](https://console.neon.tech/app/projects/fancy-poetry-23803082?database=neondb)
 
 We utilize `pgvector` for semantic similarity. **Crucially, we index availability to perform Hybrid Search.**
 
