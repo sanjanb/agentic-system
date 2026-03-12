@@ -54,13 +54,13 @@ We use **Pydantic AI** tools to allow the Agent to "see" inside the local databa
 
 #### Prerequisites
 
-| Tool | Install |
-|---|---|
-| Python 3.11+ | https://python.org |
-| [uv](https://docs.astral.sh/uv/) | `pip install uv` |
-| Docker Desktop | https://docker.com |
-| Node.js 18+ | https://nodejs.org |
-| Git | https://git-scm.com |
+| Tool                             | Install             |
+| -------------------------------- | ------------------- |
+| Python 3.11+                     | https://python.org  |
+| [uv](https://docs.astral.sh/uv/) | `pip install uv`    |
+| Docker Desktop                   | https://docker.com  |
+| Node.js 18+                      | https://nodejs.org  |
+| Git                              | https://git-scm.com |
 
 #### Step 1 — Clone the repo
 
@@ -164,10 +164,10 @@ vercel --prod
 
 ### Operational Checklist
 
-| Status | Component | Command |
-|---|---|---|
-| ✅ | Local DB | `cd backend ; docker compose up -d` |
-| ✅ | Backend API | `cd backend ; .venv\Scripts\python.exe -m uvicorn main:app --port 8000 --reload` |
-| ✅ | Tunnel | `cd backend ; .\cloudflared.exe tunnel --url http://localhost:8000` |
-| ✅ | Frontend (dev) | `cd frontend ; npm run dev` |
-| ☁️ | Frontend (prod) | Deploy to Vercel + set `PUBLIC_LOCAL_VAULT_URL` + `OPENAI_API_KEY` |
+| Status | Component       | Command                                                                          |
+| ------ | --------------- | -------------------------------------------------------------------------------- |
+| ✅     | Local DB        | `cd backend ; docker compose up -d`                                              |
+| ✅     | Backend API     | `cd backend ; .venv\Scripts\python.exe -m uvicorn main:app --port 8000 --reload` |
+| ✅     | Tunnel          | `cd backend ; .\cloudflared.exe tunnel --url http://localhost:8000`              |
+| ✅     | Frontend (dev)  | `cd frontend ; npm run dev`                                                      |
+| ☁️     | Frontend (prod) | Deploy to Vercel + set `PUBLIC_LOCAL_VAULT_URL` + `OPENAI_API_KEY`               |
