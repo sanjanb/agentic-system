@@ -24,7 +24,7 @@ export const POST = async ({ request }) => {
       }),
       // Tool 2: Atomically assign a task
       assignTask: tool({
-        description: "Assign a specific task to a worker",
+        description: "Assign a specific task to a worker (legacy)",
         parameters: z.object({
           taskId: z.number(),
           workerId: z.number(),
@@ -39,6 +39,25 @@ export const POST = async ({ request }) => {
             },
           );
           return res.json();
+        },
+      }),
+      // Tool 3: Confirm assignment using atomic claim endpoint
+      confirmAssignment: tool({
+        description: "Finalize the task assignment once a worker is chosen.",
+        parameters: z.object({
+          taskId: z.number(),
+          workerId: z.number(),
+        }),
+        execute: async ({ taskId, workerId }) => {
+          const response = await fetch(
+            `${process.env.LOCAL_VAULT_URL}/tasks/claim`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ task_id: taskId, worker_id: workerId }),
+            },
+          );
+          return response.json();
         },
       }),
     },
