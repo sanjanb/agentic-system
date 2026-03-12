@@ -1,6 +1,7 @@
 import { streamText, tool } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
+import { env } from "$env/dynamic/private";
 
 const SYSTEM_PROMPT = `You are a smart dispatch agent for a field-service platform.
 When a user describes a task, you MUST call the searchLocalVault tool with their exact description to find available workers.
@@ -27,7 +28,7 @@ export const POST = async ({ request }) => {
             .describe("The task description to match workers against"),
         }),
         execute: async ({ description }) => {
-          const vaultUrl = process.env.LOCAL_VAULT_URL;
+          const vaultUrl = env.LOCAL_VAULT_URL;
           if (!vaultUrl) throw new Error("LOCAL_VAULT_URL is not configured");
           const res = await fetch(`${vaultUrl}/tasks/match`, {
             method: "POST",
@@ -39,5 +40,5 @@ export const POST = async ({ request }) => {
         },
       }),
     },
-  }).toDataStreamResponse();
+  }).toUIMessageStreamResponse();
 };

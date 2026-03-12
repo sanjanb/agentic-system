@@ -1,7 +1,10 @@
 <script lang="ts">
-  import { useChat } from '@ai-sdk/svelte';
+  import { Chat } from '@ai-sdk/svelte';
+  import { DefaultChatTransport } from 'ai';
 
-  const { messages, input, handleSubmit, isLoading } = useChat();
+  const chat = new Chat({
+    transport: new DefaultChatTransport({ api: '/api/chat' }),
+  });
 
   // Simulated match scores for top-3 ranked results (vector similarity → rank)
   const MATCH_SCORES = [98, 85, 72];
@@ -9,26 +12,39 @@
   // Human-readable labels for tool call status badges
   const TOOL_LABELS: Record<string, string> = {
     searchLocalVault: 'Searching local vault…',
-    fetchAvailableWorkers: 'Fetching available workers…',
   };
 
-  // Per-worker confirmation state: idle | loading | success | conflict
-  let confirmStates: Record<number, 'idle' | 'loading' | 'success' | 'conflict'> = {};
+  let inputValue = $state('');
+  let taskDescription = $state('');
 
-  // Track the latest task description from user messages
-  let taskDescription = '';
-  $: {
-    const userMsgs = $messages.filter((m) => m.role === 'user');
-    if (userMsgs.length > 0) taskDescription = userMsgs[userMsgs.length - 1].content;
+  // Per-worker confirmation state
+  let confirmStates = $state<Record<number, 'loading' | 'success' | 'conflict'>>({});
+
+  const isLoading = $derived(
+    chat.status === 'submitted' || chat.status === 'streaming'
+  );
+  const anyConfirmed = $derived(Object.values(confirmStates).includes('success'));
+
+  // Keep taskDescription in sync with the latest user message
+  $effect(() => {
+    const userMsgs = chat.messages.filter((m) => m.role === 'user');
+    if (userMsgs.length > 0) {
+      const last = userMsgs[userMsgs.length - 1];
+      const textPart = last.parts.find((p) => p.type === 'text');
+      if (textPart && 'text' in textPart) taskDescription = textPart.text;
+    }
+  });
+
+  async function handleSubmit(e: Event) {
+    e.preventDefault();
+    const text = inputValue.trim();
+    if (!text) return;
+    inputValue = '';
+    await chat.sendMessage({ text });
   }
-
-  // Whether any worker has already been successfully confirmed in this session
-  $: anyConfirmed = Object.values(confirmStates).includes('success');
 
   async function confirmAssignment(workerId: number) {
     confirmStates[workerId] = 'loading';
-    confirmStates = confirmStates; // trigger reactivity
-
     try {
       const res = await fetch('/api/dispatch', {
         method: 'POST',
@@ -39,7 +55,6 @@
     } catch {
       confirmStates[workerId] = 'conflict';
     }
-    confirmStates = confirmStates;
   }
 </script>
 
@@ -50,30 +65,30 @@
   </header>
 
   <div class="chat-log">
-    {#each $messages as message}
+    {#each chat.messages as message}
       <div class="message {message.role}">
 
         {#if message.role === 'user'}
           <!-- ── Client message ── -->
           <div class="bubble user-bubble">
             <span class="role-label">Client</span>
-            <p>{message.content}</p>
+            {#each message.parts as part}
+              {#if part.type === 'text'}<p>{part.text}</p>{/if}
+            {/each}
           </div>
 
         {:else}
-          <!-- ── Agent: tool call status badges ── -->
-          {#if message.toolInvocations}
-            {#each message.toolInvocations as inv}
-              {#if inv.state === 'call' || inv.state === 'partial-call'}
+          <!-- ── Agent: tool call status badges + candidate cards + text ── -->
+          {#each message.parts as part}
+            {#if part.type === 'dynamic-tool'}
+              {#if part.state === 'input-streaming' || part.state === 'input-available'}
                 <div class="badge thinking">
-                  ⚙️ {TOOL_LABELS[inv.toolName] ?? `Calling ${inv.toolName}…`}
+                  ⚙️ {TOOL_LABELS[part.toolName] ?? `Calling ${part.toolName}…`}
                 </div>
-
-              {:else if inv.state === 'result' && inv.toolName === 'searchLocalVault'}
-                <!-- ── Candidate Cards ── -->
+              {:else if part.state === 'output-available' && part.toolName === 'searchLocalVault'}
                 <div class="badge done">✅ Analyzing candidate availability…</div>
                 <div class="card-list">
-                  {#each inv.result as candidate, i}
+                  {#each (part.output as Array<{id: number; name: string; bio: string}>) as candidate, i}
                     <div class="card">
                       <div class="card-header">
                         <span class="rank">#{i + 1}</span>
@@ -90,7 +105,7 @@
                           <button
                             class="confirm-btn"
                             disabled={confirmStates[candidate.id] === 'loading' || anyConfirmed}
-                            on:click={() => confirmAssignment(candidate.id)}
+                            onclick={() => confirmAssignment(candidate.id)}
                           >
                             {confirmStates[candidate.id] === 'loading' ? 'Confirming…' : 'Confirm Assignment'}
                           </button>
@@ -100,35 +115,32 @@
                   {/each}
                 </div>
               {/if}
-            {/each}
-          {/if}
-
-          <!-- ── Agent text response ── -->
-          {#if message.content}
-            <div class="bubble agent-bubble">
-              <span class="role-label">Agent</span>
-              <p>{message.content}</p>
-            </div>
-          {/if}
+            {:else if part.type === 'text' && part.text}
+              <div class="bubble agent-bubble">
+                <span class="role-label">Agent</span>
+                <p>{part.text}</p>
+              </div>
+            {/if}
+          {/each}
         {/if}
 
       </div>
     {/each}
 
-    {#if $isLoading}
+    {#if isLoading}
       <div class="badge thinking">⚙️ Agent is thinking…</div>
     {/if}
   </div>
 
-  <form on:submit={handleSubmit} class="input-row">
+  <form onsubmit={handleSubmit} class="input-row">
     <input
       class="task-input"
-      bind:value={$input}
+      bind:value={inputValue}
       placeholder="e.g. 'Find a plumber for a commercial kitchen emergency…'"
-      disabled={$isLoading}
+      disabled={isLoading}
     />
-    <button class="dispatch-btn" type="submit" disabled={$isLoading}>
-      {$isLoading ? 'Dispatching…' : '🚀 Dispatch Agent'}
+    <button class="dispatch-btn" type="submit" disabled={isLoading}>
+      {isLoading ? 'Dispatching…' : '🚀 Dispatch Agent'}
     </button>
   </form>
 </main>

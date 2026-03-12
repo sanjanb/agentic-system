@@ -1,4 +1,5 @@
 import { json } from "@sveltejs/kit";
+import { env } from "$env/dynamic/private";
 
 /**
  * POST /api/dispatch
@@ -6,7 +7,7 @@ import { json } from "@sveltejs/kit";
  * Running server-side keeps LOCAL_VAULT_URL secret and avoids browser CORS pre-flights.
  */
 export const POST = async ({ request }) => {
-  const vaultUrl = process.env.LOCAL_VAULT_URL;
+  const vaultUrl = env.LOCAL_VAULT_URL;
 
   if (!vaultUrl) {
     return json(
