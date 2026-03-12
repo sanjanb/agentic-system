@@ -9,6 +9,7 @@ if BASE_DIR not in sys.path:
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from pydantic import BaseModel
 from database import get_conn
 import psycopg
 from pgvector.psycopg import register_vector
@@ -22,7 +23,7 @@ class AssignmentRequest(BaseModel):
 
 
 @app.post("/tasks/match")
-def match_task(description: str):
+def match_task(req: MatchRequest):
     """Embed incoming task and return top available workers (hybrid search).
 
     This assumes a local SentenceTransformer model is available for embeddings.
@@ -33,7 +34,7 @@ def match_task(description: str):
         raise HTTPException(status_code=500, detail="SentenceTransformer not available")
 
     model = SentenceTransformer('BAAI/bge-small-en-v1.5')
-    task_vec = model.encode(description).tolist()
+    task_vec = model.encode(req.description).tolist()
 
     conn = get_conn()
     with conn.cursor() as cur:
