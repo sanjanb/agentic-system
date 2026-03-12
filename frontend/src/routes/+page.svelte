@@ -1,60 +1,44 @@
 <script lang="ts">
-	import welcomeFallback from '$lib/images/svelte-welcome.png';
-	import welcome from '$lib/images/svelte-welcome.webp';
+  import { useChat } from 'ai/svelte';
 
-	import Counter from './Counter.svelte';
+  // useChat handles the streaming and tool-call state automatically
+  const { messages, input, handleSubmit, isLoading } = useChat();
 </script>
 
-<svelte:head>
-	<title>Home</title>
-	<meta name="description" content="Svelte demo app" />
-</svelte:head>
+<main class="container">
+  <h1>Dispatch Center</h1>
 
-<section>
-	<h1>
-		<span class="welcome">
-			<picture>
-				<source srcset={welcome} type="image/webp" />
-				<img src={welcomeFallback} alt="Welcome" />
-			</picture>
-		</span>
+  <div class="chat-log">
+    {#each $messages as message}
+      <div class="message {message.role}">
+        <strong>{message.role === 'user' ? 'Client' : 'Agent'}:</strong>
+        <p>{message.content}</p>
+        
+        {#if message.toolInvocations}
+          <div class="system-note">
+            {#each message.toolInvocations as tool}
+              <span>⚙️ Executing: {tool.toolName}...</span>
+            {/each}
+          </div>
+        {/if}
+      </div>
+    {/each}
+  </div>
 
-		to your new<br />SvelteKit app
-	</h1>
-
-	<h2>
-		try editing <strong>src/routes/+page.svelte</strong>
-	</h2>
-
-	<Counter />
-</section>
+  <form on:submit={handleSubmit}>
+    <input 
+      bind:value={$input} 
+      placeholder="e.g., 'Find someone to fix the plumbing'" 
+      disabled={$isLoading}
+    />
+    <button type="submit">Dispatch Agent</button>
+  </form>
+</main>
 
 <style>
-	section {
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		flex: 0.6;
-	}
-
-	h1 {
-		width: 100%;
-	}
-
-	.welcome {
-		display: block;
-		position: relative;
-		width: 100%;
-		height: 0;
-		padding: 0 0 calc(100% * 495 / 2048) 0;
-	}
-
-	.welcome img {
-		position: absolute;
-		width: 100%;
-		height: 100%;
-		top: 0;
-		display: block;
-	}
+  .container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+  .chat-log { height: 400px; overflow-y: auto; border: 1px solid #ccc; padding: 1rem; margin-bottom: 1rem; }
+  .user { color: blue; }
+  .assistant { color: green; }
+  .system-note { font-size: 0.8rem; color: #666; font-style: italic; }
 </style>
