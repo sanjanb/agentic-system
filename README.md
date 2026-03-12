@@ -114,3 +114,13 @@ docker run --name local-vdb -e POSTGRES_PASSWORD=pass -p 5432:5432 -d pgvector/p
 2. **Agent** (Vercel) queries **Local Vault** for the best _available_ matches.
 3. **Agent** presents the top match to the **Worker**.
 4. **Worker** clicks "Accept" $\rightarrow$ **FastAPI** atomically marks worker as `busy` and task as `assigned`.
+
+### Operational Checklist
+
+| Status | Component | Action |
+| ------ | --------- | ------ |
+| 🛠️ | Local DB | Run `docker compose up -d` |
+| 🛠️ | Backend API | Run `uv run uvicorn main:app --reload` in the `backend/` directory |
+| 🛠️ | Tunnel | Run `npx localtunnel --port 8000` to get your public URL |
+| 🛠️ | Frontend | Add `LOCAL_VAULT_URL` to your Vercel Environment Variables |
+
