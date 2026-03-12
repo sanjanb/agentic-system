@@ -9,7 +9,7 @@ The **High-Performance, Low-Cost Architecture** designed specifically for this s
 
 ---
 
-### 1. The Architectural Blueprint
+### 1. The Architecture
 
 To save cost and performance, we will **not** ask the LLM to search the whole database. LLMs are slow and expensive. We will use RAG inside the Database for searching and the LLM for deciding.
 
