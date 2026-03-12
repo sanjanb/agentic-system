@@ -1,4 +1,4 @@
-import { streamText, tool } from "ai";
+import { streamText, tool, stepCountIs } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { env } from "$env/dynamic/private";
@@ -16,24 +16,24 @@ export const POST = async ({ request }) => {
     model: openai("gpt-4o-mini"),
     system: SYSTEM_PROMPT,
     messages,
-    maxSteps: 5,
+    stopWhen: stepCountIs(5),
     tools: {
       // Primary search tool — calls the local vault's hybrid vector search
       searchLocalVault: tool({
         description:
           "Search the local vault for available workers matching a task description. Always call this first.",
-        parameters: z.object({
+        inputSchema: z.object({
           description: z
             .string()
             .describe("The task description to match workers against"),
         }),
-        execute: async ({ description }) => {
+        execute: async (input) => {
           const vaultUrl = env.LOCAL_VAULT_URL;
           if (!vaultUrl) throw new Error("LOCAL_VAULT_URL is not configured");
           const res = await fetch(`${vaultUrl}/tasks/match`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ description }),
+            body: JSON.stringify({ description: input.description }),
           });
           if (!res.ok) throw new Error(`Vault error: ${res.status}`);
           return res.json();
@@ -42,3 +42,4 @@ export const POST = async ({ request }) => {
     },
   }).toUIMessageStreamResponse();
 };
+
