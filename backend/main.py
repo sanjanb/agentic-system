@@ -22,6 +22,10 @@ class AssignmentRequest(BaseModel):
     worker_id: int
 
 
+class MatchRequest(BaseModel):
+    description: str
+
+
 @app.post("/tasks/match")
 def match_task(req: MatchRequest):
     """Embed incoming task and return top available workers (hybrid search).
