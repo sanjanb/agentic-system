@@ -15,7 +15,7 @@ export const POST = async ({ request }) => {
   return streamText({
     model: openai("gpt-4o-mini"),
     system: SYSTEM_PROMPT,
-    messages: convertToModelMessages(messages),
+    messages: await convertToModelMessages(messages),
     stopWhen: stepCountIs(5),
     tools: {
       // Primary search tool — calls the local vault's hybrid vector search
