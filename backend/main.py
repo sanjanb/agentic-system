@@ -29,6 +29,9 @@ def match_task(req: MatchRequest):
     model = SentenceTransformer('BAAI/bge-small-en-v1.5')
     task_vec = model.encode(req.description).tolist()
 
+    from psycopg.types.json import Jsonb
+    emb_literal = '[' + ','.join(str(x) for x in task_vec) + ']'
+
     conn = get_conn()
     with conn.cursor() as cur:
         cur.execute(
@@ -36,10 +39,10 @@ def match_task(req: MatchRequest):
             SELECT id, name, bio
             FROM workers
             WHERE status = 'available'
-            ORDER BY skills_embedding <=> %s
+            ORDER BY skills_embedding <=> %s::vector
             LIMIT 3
             """,
-            (task_vec,),
+            (emb_literal,),
         )
         rows = cur.fetchall()
 
