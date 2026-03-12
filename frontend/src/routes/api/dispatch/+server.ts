@@ -9,7 +9,10 @@ export const POST = async ({ request }) => {
   const vaultUrl = process.env.LOCAL_VAULT_URL;
 
   if (!vaultUrl) {
-    return json({ error: "LOCAL_VAULT_URL is not configured on the server." }, { status: 500 });
+    return json(
+      { error: "LOCAL_VAULT_URL is not configured on the server." },
+      { status: 500 },
+    );
   }
 
   const body = await request.json();
