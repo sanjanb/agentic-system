@@ -1,4 +1,4 @@
-import { streamText, tool, stepCountIs } from "ai";
+import { streamText, tool, stepCountIs, convertToModelMessages } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 import { env } from "$env/dynamic/private";
@@ -15,7 +15,7 @@ export const POST = async ({ request }) => {
   return streamText({
     model: openai("gpt-4o-mini"),
     system: SYSTEM_PROMPT,
-    messages,
+    messages: convertToModelMessages(messages),
     stopWhen: stepCountIs(5),
     tools: {
       // Primary search tool — calls the local vault's hybrid vector search
