@@ -1,51 +1,109 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from database import get_conn
-import uvicorn
+import psycopg
+from pgvector.psycopg import register_vector
+from app.settings import settings
 
 app = FastAPI()
+
 
 class AssignmentRequest(BaseModel):
     task_id: int
     worker_id: int
 
+
+@app.post("/tasks/match")
+def match_task(description: str):
+    """Embed incoming task and return top available workers (hybrid search).
+
+    This assumes a local SentenceTransformer model is available for embeddings.
+    """
+    try:
+        from sentence_transformers import SentenceTransformer
+    except Exception:
+        raise HTTPException(status_code=500, detail="SentenceTransformer not available")
+
+    model = SentenceTransformer('BAAI/bge-small-en-v1.5')
+    task_vec = model.encode(description).tolist()
+
+    conn = psycopg.connect(settings.database_url)
+    register_vector(conn)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, name, bio
+            FROM workers
+            WHERE status = 'available'
+            ORDER BY skills_embedding <=> %s
+            LIMIT 3
+            """,
+            (task_vec,),
+        )
+        rows = cur.fetchall()
+
+    conn.close()
+    return [{"id": r[0], "name": r[1], "bio": r[2]} for r in rows]
+
+
+@app.post("/search-users")
+def search_users(embedding: list[float]):
+    conn = psycopg.connect(settings.database_url)
+    register_vector(conn)
+
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, name, bio FROM users ORDER BY profile_embedding <=> %s LIMIT 3",
+            (embedding,),
+        )
+        rows = cur.fetchall()
+
+    conn.close()
+    return [{"id": r[0], "name": r[1], "bio": r[2]} for r in rows]
+
+
 @app.post("/tasks/claim")
-async def claim_task(req: AssignmentRequest):
-    """
-    ATOMIC DISPATCH:
-    Checks if task is 'open' and worker is 'available' in ONE transaction.
-    """
-    with get_conn() as conn:
-        with conn.cursor() as cur:
-            # 1. Start Transaction
-            cur.execute("BEGIN;")
-            
-            # 2. Try to update task status
-            cur.execute(
-                "UPDATE tasks SET assigned_worker_id = %s, status = 'assigned' "
-                "WHERE id = %s AND status = 'open' RETURNING id",
-                (req.worker_id, req.task_id)
-            )
-            task_updated = cur.fetchone()
+def claim_task(req: AssignmentRequest):
+    conn = psycopg.connect(settings.database_url)
 
-            if not task_updated:
-                cur.execute("ROLLBACK;")
-                raise HTTPException(status_code=409, detail="Task already taken or closed.")
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE tasks
+                    SET assigned_worker_id = %s, status = 'assigned'
+                    WHERE id = %s AND status = 'open'
+                    RETURNING id
+                    """,
+                    (req.worker_id, req.task_id),
+                )
+                task_updated = cur.fetchone()
 
-            # 3. Mark worker as busy
-            cur.execute(
-                "UPDATE workers SET status = 'busy' WHERE id = %s AND status = 'available' RETURNING id",
-                (req.worker_id,)
-            )
-            worker_updated = cur.fetchone()
+                if not task_updated:
+                    raise HTTPException(status_code=409, detail="Task already taken or closed.")
 
-            if not worker_updated:
-                cur.execute("ROLLBACK;")
-                raise HTTPException(status_code=409, detail="Worker is no longer available.")
+                cur.execute(
+                    """
+                    UPDATE workers
+                    SET status = 'busy'
+                    WHERE id = %s AND status = 'available'
+                    RETURNING id
+                    """,
+                    (req.worker_id,),
+                )
+                worker_updated = cur.fetchone()
 
-            # 4. Commit both if successful
-            cur.execute("COMMIT;")
-            return {"status": "success", "message": f"Task {req.task_id} assigned to Worker {req.worker_id}"}
+                if not worker_updated:
+                    raise HTTPException(status_code=409, detail="Worker is no longer available.")
+
+        return {"status": "success", "message": f"Task {req.task_id} assigned to Worker {req.worker_id}"}
+
+    finally:
+        conn.close()
+
 
 if __name__ == "__main__":
+    import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
