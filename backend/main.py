@@ -1,8 +1,34 @@
-from fastapi import FastAPI, HTTPException
+import logging
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from database import get_conn
 
-app = FastAPI()
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(message)s",
+)
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Startup lifespan — model is loaded ONCE and reused across all requests
+# ---------------------------------------------------------------------------
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("Loading embedding model (BAAI/bge-small-en-v1.5)…")
+    try:
+        from sentence_transformers import SentenceTransformer
+        app.state.model = SentenceTransformer("BAAI/bge-small-en-v1.5")
+        logger.info("Embedding model ready.")
+    except Exception as exc:
+        logger.error("Failed to load embedding model: %s", exc)
+        app.state.model = None
+    yield
+    logger.info("Shutting down.")
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 class MatchRequest(BaseModel):
@@ -15,18 +41,12 @@ class AssignmentRequest(BaseModel):
 
 
 @app.post("/tasks/match")
-def match_task(req: MatchRequest):
-    """Embed incoming task and return top available workers (hybrid search).
+def match_task(req: MatchRequest, request: Request):
+    """Embed incoming task description and return top available workers."""
+    model = request.app.state.model
+    if model is None:
+        raise HTTPException(status_code=500, detail="Embedding model not available.")
 
-    This assumes a local SentenceTransformer model is available for embeddings.
-    """
-    try:
-        from sentence_transformers import SentenceTransformer
-    except Exception:
-        raise HTTPException(status_code=500, detail="SentenceTransformer not available")
-
-    # Model is loaded once per request — for production, cache this at module level
-    model = SentenceTransformer('BAAI/bge-small-en-v1.5')
     task_vec = model.encode(req.description).tolist()
 
     from psycopg.types.json import Jsonb
