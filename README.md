@@ -1,63 +1,96 @@
-# Agentic-System (POC)
+# Agentic-System (Hybrid POC)
 
-**Event-driven Agentic system for Intelligent Task-User Matching.**
+**A Privacy-First, Event-Driven Agentic System for Intelligent Task-User Matching.**
 
-* **The Project:** Automatically retrieving the best **User Profile** to match a new **Task**.
-* **The Agent:** A Pydantic AI "Brain" that evaluates the Top 3 candidates and decides who is best, providing a clinical reasoning for the choice.
-* **The Tech:** SvelteKit + FastAPI + Pydantic AI + Neon (pgvector).
+- **The Project:** Retrieving **User Profiles** from a private local vault to match a cloud-originating **Task**.
+- **The Agent:** Hosted on Vercel, utilizing the **Vercel AI SDK** to coordinate between cloud LLMs and your local hardware.
+- **The Tech:** SvelteKit (Vercel) + FastAPI (Local `uv`) + Pydantic AI + Local Postgres (`pgvector`).
 
+### 1. The Hybrid Architecture
 
-
-### 1. The High-Performance Architecture
-
-To maximize performance and minimize token costs, we use a **"Retrieve then Reason"** pattern. We do not ask the LLM to search; we use the database for high-speed retrieval and the LLM for final judgment.
+To ensure data privacy and high-speed local retrieval, the "Search" happens on the hardware, while the "Reasoning" happens at the Edge.
 
 ```mermaid
 graph TD
-    A[Frontend: SvelteKit] -->|1. Create Task| B[Backend: FastAPI]
-    B -->|2. Save Task| C[(Neon DB: Tasks)]
-    B -->|3. Generate Embedding| D[OpenAI Embedding API]
-    B -->|4. Hybrid Search| E[(Neon DB: Users + pgvector)]
-    E -->|Filter: is_available=True| E
-    E -->|5. Return Top 3 Users| B
-    B -->|6. Reasoning + Context| F[Pydantic AI Agent]
-    F -->|Inject Memory: Rejected Users| F
-    F -->|7. Select Best User| B
-    B -->|8. Assign Task| C
-    B -->|9. Notify| A
+    subgraph Vercel_Edge [Cloud: Vercel & AI SDK]
+        A[Frontend: SvelteKit] -->|1. Submit Task| B[AI SDK Orchestrator]
+        B -->|2. Reasoning| C[LLM: GPT-4o-Mini]
+        C -->|3. Tool Call: find_local_users| B
+    end
+
+    subgraph Local_Vault [Local: Private Hardware]
+        B -->|4. Secure Tunnel| D[FastAPI: uv Server]
+        D -->|5. Hybrid Vector Search| E[(Postgres: pgvector)]
+        E -->|6. Top 3 Candidates| D
+        D -->|7. Profiles & Embeddings| B
+    end
+
+    B -->|8. Final Decision| A
 
 ```
 
+### 2. Local Backend Setup (`uv` + FastAPI)
 
+We use `uv` for ultra-fast dependency management. The backend serves as a "Specialized Tool" for the cloud agent.
 
-### 2. Database Schema [(Neon + pgvector)](https://console.neon.tech/app/projects/fancy-poetry-23803082?database=neondb)
+**Installation (Local):**
 
-We utilize `pgvector` for semantic similarity. **Crucially, we index availability to perform Hybrid Search.**
+```bash
+# Initialize with uv
+mkdir backend && cd backend
+uv init
+uv add fastapi uvicorn pgvector psycopg[binary] openai pydantic-settings
+
+```
+
+**Local Vector Schema:**
+
+```sql
+-- Enable locally
+CREATE EXTENSION IF NOT EXISTS vector;
+
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    name TEXT NOT NULL,
+    skills TEXT[],
+    profile_embedding vector(1536) -- Managed locally for privacy
+);
+
+```
 
 ---
 
-### 3. Backend: FastAPI + Pydantic AI
+### 3. Frontend Orchestration (Vercel AI SDK)
 
-The Agent is restricted to a strict Pydantic schema to prevent hallucinations and ensure the Frontend receives clean data.
+The frontend on Vercel acts as the "Brain." It uses the `maxSteps` feature to "loop": it calls your local machine, gets the users, and then renders the final recommendation.
 
-**Key Refinement: Agentic Memory.** We pass `rejected_user_ids` to the Agent so it learns from previous failed matches.
+**Orchestration Logic:**
 
+```typescript
+// Vercel Edge Function
+export const POST = async ({ request }) => {
+  return streamText({
+    model: openai('gpt-4o-mini'),
+    maxSteps: 5,
+    tools: {
+      searchLocalVault: tool({
+        description: 'Query the local pgvector database for matching users',
+        execute: async ({ embedding }) => {
+          const res = await fetch('YOUR_TUNNEL_URL/search-users', { ... });
+          return res.json();
+        }
+      })
+    }
+  });
+};
 
+```
 
-### 4. Optimization Strategy (Architect's Advice)
+### 4. Hybrid Optimization Strategy
 
-| Strategy | Implementation | Benefit |
-| --- | --- | --- |
-| **Hybrid Search** | Filter `is_available = True` in SQL *before* the vector search. | **Performance:** Reduces the search space and prevents the Agent from picking unavailable users. |
-| **Background Embedding** | Use FastAPI `BackgroundTasks` to generate embeddings when a user updates their bio. | **Cost:** Embeddings are generated once, not on every task query. |
-| **Mini Models** | Use `gpt-4o-mini` for reasoning and `text-embedding-3-small` for vectors. | **Savings:** Reduces costs by ~90% compared to using standard GPT-4. |
-| **Agentic Memory** | Store `rejected_user_ids` in the Task table. | **Reliability:** Prevents the system from getting stuck in a loop of re-assigning rejected users. |
-
-
-
-### 5. Frontend: SvelteKit
-
-* **Real-time Updates:** Use Svelte stores to track task status.
-* **Human-in-the-loop:** Instead of "Auto-Assign," the UI shows an "Agent Recommendation." The task only moves to `assigned` when the User clicks **Accept**.
-
-
+| Strategy           | Implementation                                  | Benefit                                                           |
+| ------------------ | ----------------------------------------------- | ----------------------------------------------------------------- |
+| **Privacy Vault**  | Keep `pgvector` and raw bios on Local Postgres. | **Security:** Sensitive data never lives on cloud servers.        |
+| **uv Environment** | Use `uv` to manage local Python dependencies.   | **Speed:** Instant startup and reproducible environments.         |
+| **Tool Calling**   | LLM uses `find_local_users` as a specific tool. | **Precision:** The LLM only sees the data it explicitly asks for. |
+| **Edge Reasoning** | Host Agent on Vercel Edge.                      | **Latency:** Final UI rendering happens closest to the user.      |
