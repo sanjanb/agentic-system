@@ -42,4 +42,3 @@ export const POST = async ({ request }) => {
     },
   }).toUIMessageStreamResponse();
 };
-
