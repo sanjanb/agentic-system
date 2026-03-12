@@ -4,12 +4,12 @@ Local API server that owns the **source of truth**: worker profiles, availabilit
 
 ## Prerequisites
 
-| Tool | Version | Notes |
-|---|---|---|
-| Python | 3.11+ | |
-| [uv](https://docs.astral.sh/uv/) | latest | fast Python env manager |
-| Docker Desktop | latest | runs the Postgres/pgvector container |
-| cloudflared.exe | latest | ships as `backend/cloudflared.exe` in this repo |
+| Tool                             | Version | Notes                                           |
+| -------------------------------- | ------- | ----------------------------------------------- |
+| Python                           | 3.11+   |                                                 |
+| [uv](https://docs.astral.sh/uv/) | latest  | fast Python env manager                         |
+| Docker Desktop                   | latest  | runs the Postgres/pgvector container            |
+| cloudflared.exe                  | latest  | ships as `backend/cloudflared.exe` in this repo |
 
 ## One-time setup
 
@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS tasks (
 ```
 
 On startup you will see:
+
 ```
 Loading embedding model (BAAI/bge-small-en-v1.5)…
 Embedding model ready.
@@ -89,11 +90,11 @@ Copy the `https://*.trycloudflare.com` URL from the output and set it as `PUBLIC
 
 ## API Endpoints
 
-| Method | Path | Description |
-|---|---|---|
-| `POST` | `/tasks/match` | Embed description, return top available workers by similarity |
-| `POST` | `/tasks/claim` | Atomically assign a worker to a task (returns 409 on race condition) |
-| `POST` | `/search-users` | Raw vector search (no availability filter) |
+| Method | Path            | Description                                                          |
+| ------ | --------------- | -------------------------------------------------------------------- |
+| `POST` | `/tasks/match`  | Embed description, return top available workers by similarity        |
+| `POST` | `/tasks/claim`  | Atomically assign a worker to a task (returns 409 on race condition) |
+| `POST` | `/search-users` | Raw vector search (no availability filter)                           |
 
 ## File Overview
 
