@@ -8,7 +8,7 @@ def ping_match():
     payload = {"description": "I need help with AWS VPC"}
     headers = {"Content-Type": "application/json"}
     try:
-        r = requests.post(url, json=payload, headers=headers, timeout=5)
+        r = requests.post(url, json=payload, headers=headers, timeout=60)
         print("Status:", r.status_code)
         print("Response:", r.text)
     except Exception as e:

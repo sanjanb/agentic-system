@@ -1,29 +1,17 @@
-import sys
-import os
-from pathlib import Path
-
-# Ensure backend package dir is on sys.path so `import app` works when cwd is project root
-BASE_DIR = str(Path(__file__).parent.resolve())
-if BASE_DIR not in sys.path:
-    sys.path.insert(0, BASE_DIR)
-
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from pydantic import BaseModel
 from database import get_conn
-import psycopg
-from pgvector.psycopg import register_vector
 
 app = FastAPI()
+
+
+class MatchRequest(BaseModel):
+    description: str
 
 
 class AssignmentRequest(BaseModel):
     task_id: int
     worker_id: int
-
-
-class MatchRequest(BaseModel):
-    description: str
 
 
 @app.post("/tasks/match")
@@ -37,6 +25,7 @@ def match_task(req: MatchRequest):
     except Exception:
         raise HTTPException(status_code=500, detail="SentenceTransformer not available")
 
+    # Model is loaded once per request — for production, cache this at module level
     model = SentenceTransformer('BAAI/bge-small-en-v1.5')
     task_vec = model.encode(req.description).tolist()
 
