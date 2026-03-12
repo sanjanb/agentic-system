@@ -6,8 +6,9 @@ LOCAL_URL = os.environ.get("LOCAL_VAULT_URL", "http://localhost:8000")
 def ping_match():
     url = f"{LOCAL_URL}/tasks/match"
     payload = {"description": "I need help with AWS VPC"}
+    headers = {"Content-Type": "application/json"}
     try:
-        r = requests.post(url, json=payload, timeout=5)
+        r = requests.post(url, json=payload, headers=headers, timeout=5)
         print("Status:", r.status_code)
         print("Response:", r.text)
     except Exception as e:
