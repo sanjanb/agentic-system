@@ -37,3 +37,6 @@ coverage/
 temp/
 tmp/
 *.bak
+
+#custom
+docs/
