@@ -2,64 +2,42 @@ import { streamText, tool } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";
 
+const SYSTEM_PROMPT = `You are a smart dispatch agent for a field-service platform.
+When a user describes a task, you MUST call the searchLocalVault tool with their exact description to find available workers.
+After receiving results, summarise the top candidate in one sentence and tell the user to click "Confirm Assignment" on the card to lock in the assignment.
+Never make up worker names or availability — always rely on tool results.
+Never call confirmAssignment yourself — the user confirms via the UI button.`;
+
 export const POST = async ({ request }) => {
   const { messages } = await request.json();
 
   return streamText({
     model: openai("gpt-4o-mini"),
+    system: SYSTEM_PROMPT,
     messages,
-    maxSteps: 5, // Important: Allows the agent to "loop" through tools
+    maxSteps: 5,
     tools: {
-      // Tool 1: Get available workers from your Local Vault
-      fetchAvailableWorkers: tool({
+      // Primary search tool — calls the local vault's hybrid vector search
+      searchLocalVault: tool({
         description:
-          "Get a list of currently available workers from the local database",
-        parameters: z.object({}),
-        execute: async () => {
-          const res = await fetch(
-            `${process.env.LOCAL_VAULT_URL}/workers/available`,
-          );
-          return res.json();
-        },
-      }),
-      // Tool 2: Atomically assign a task
-      assignTask: tool({
-        description: "Assign a specific task to a worker (legacy)",
+          "Search the local vault for available workers matching a task description. Always call this first.",
         parameters: z.object({
-          taskId: z.number(),
-          workerId: z.number(),
+          description: z
+            .string()
+            .describe("The task description to match workers against"),
         }),
-        execute: async ({ taskId, workerId }) => {
-          const res = await fetch(
-            `${process.env.LOCAL_VAULT_URL}/tasks/assign`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ task_id: taskId, worker_id: workerId }),
-            },
-          );
+        execute: async ({ description }) => {
+          const vaultUrl = process.env.LOCAL_VAULT_URL;
+          if (!vaultUrl) throw new Error("LOCAL_VAULT_URL is not configured");
+          const res = await fetch(`${vaultUrl}/tasks/match`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ description }),
+          });
+          if (!res.ok) throw new Error(`Vault error: ${res.status}`);
           return res.json();
-        },
-      }),
-      // Tool 3: Confirm assignment using atomic claim endpoint
-      confirmAssignment: tool({
-        description: "Finalize the task assignment once a worker is chosen.",
-        parameters: z.object({
-          taskId: z.number(),
-          workerId: z.number(),
-        }),
-        execute: async ({ taskId, workerId }) => {
-          const response = await fetch(
-            `${process.env.LOCAL_VAULT_URL}/tasks/claim`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ task_id: taskId, worker_id: workerId }),
-            },
-          );
-          return response.json();
         },
       }),
     },
-  });
+  }).toDataStreamResponse();
 };
