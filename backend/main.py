@@ -9,9 +9,9 @@ if BASE_DIR not in sys.path:
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from database import get_conn
 import psycopg
 from pgvector.psycopg import register_vector
-from app.settings import settings
 
 app = FastAPI()
 
@@ -35,9 +35,7 @@ def match_task(description: str):
     model = SentenceTransformer('BAAI/bge-small-en-v1.5')
     task_vec = model.encode(description).tolist()
 
-    conn = psycopg.connect(settings.database_url)
-    register_vector(conn)
-
+    conn = get_conn()
     with conn.cursor() as cur:
         cur.execute(
             """
@@ -57,9 +55,7 @@ def match_task(description: str):
 
 @app.post("/search-users")
 def search_users(embedding: list[float]):
-    conn = psycopg.connect(settings.database_url)
-    register_vector(conn)
-
+    conn = get_conn()
     with conn.cursor() as cur:
         cur.execute(
             "SELECT id, name, bio FROM users ORDER BY profile_embedding <=> %s LIMIT 3",
@@ -73,7 +69,7 @@ def search_users(embedding: list[float]):
 
 @app.post("/tasks/claim")
 def claim_task(req: AssignmentRequest):
-    conn = psycopg.connect(settings.database_url)
+    conn = get_conn()
 
     try:
         with conn:
