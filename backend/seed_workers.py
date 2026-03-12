@@ -1,11 +1,14 @@
 import asyncio
 import psycopg
 from pgvector.psycopg import register_vector
-from openai import OpenAI
+from sentence_transformers import SentenceTransformer
 import os
 
-# 1. Setup OpenAI & Connection
-client = OpenAI(api_key="your_openai_api_key_here")
+# 1. Initialize Local Embedding Model 
+# 'all-MiniLM-L6-v2' is extremely fast and light on RAM
+# 'bge-small-en-v1.5' is slightly better for professional skill matching
+model = SentenceTransformer('BAAI/bge-small-en-v1.5')
+
 DB_URL = "postgresql://dev_user:dev_password@localhost:5432/task_db"
 
 workers_data = [
@@ -22,27 +25,24 @@ workers_data = [
 ]
 
 async def seed():
+    # Note: Local models usually output 384 dimensions, not 1536. 
+    # Make sure your Postgres column matches!
     conn = psycopg.connect(DB_URL, autocommit=True)
     register_vector(conn)
     
-    print("🌱 Starting to seed workers...")
+    print("🌱 Starting Local Seeding (Zero Cost)...")
     
     for worker in workers_data:
-        # Generate embedding for the skills
-        response = client.embeddings.create(
-            input=worker["skills"],
-            model="text-embedding-3-small"
-        )
-        embedding = response.data[0].embedding
+        # Generate embedding LOCALLY on your CPU/GPU
+        embedding = model.encode(worker["skills"]).tolist()
         
-        # Insert into Local Vault
         conn.execute(
             "INSERT INTO workers (name, bio, skills_embedding, status) VALUES (%s, %s, %s, %s)",
             (worker["name"], worker["skills"], embedding, "available")
         )
-        print(f"✅ Added {worker['name']}")
+        print(f"✅ Locally Indexed: {worker['name']}")
 
-    print("🚀 Seeding complete! Your Local Vault is ready for dispatch.")
+    print("🚀 Local Vault is ready. Total API Cost: $0.00")
 
 if __name__ == "__main__":
     asyncio.run(seed())
