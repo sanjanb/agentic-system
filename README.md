@@ -1,96 +1,116 @@
-# Agentic-System (Hybrid POC)
+# Agentic-System (Hybrid Dispatch POC)
 
-**A Privacy-First, Event-Driven Agentic System for Intelligent Task-User Matching.**
+**A Real-Time, Privacy-First Agentic System for Dynamic Task-Worker Matching.**
 
-- **The Project:** Retrieving **User Profiles** from a private local vault to match a cloud-originating **Task**.
-- **The Agent:** Hosted on Vercel, utilizing the **Vercel AI SDK** to coordinate between cloud LLMs and your local hardware.
-- **The Tech:** SvelteKit (Vercel) + FastAPI (Local `uv`) + Pydantic AI + Local Postgres (`pgvector`).
+- **The Project:** A dynamic dispatch engine that matches Clients' tasks to the best available Workers using semantic intelligence.
+- **The Engine:** Local FastAPI server managing the "Source of Truth" (Worker status & Vector embeddings).
+- **The Orchestrator:** Vercel-hosted SvelteKit using the **Vercel AI SDK** to reason over system state and suggest assignments.
 
-### 1. The Hybrid Architecture
+### 1. Hybrid Architecture & Event Flow
 
-To ensure data privacy and high-speed local retrieval, the "Search" happens on the hardware, while the "Reasoning" happens at the Edge.
+The system separates **Reasoning** (Cloud LLM) from **Authoritative State** (Local Postgres). This ensures the Agent always knows who is `available` before suggesting a match.
 
 ```mermaid
 graph TD
-    subgraph Vercel_Edge [Cloud: Vercel & AI SDK]
-        A[Frontend: SvelteKit] -->|1. Submit Task| B[AI SDK Orchestrator]
+    subgraph Vercel_Edge [Cloud: SvelteKit Orchestration]
+        A[Client/Worker UI] -->|1. Post Task / Update Status| B[Vercel AI SDK]
         B -->|2. Reasoning| C[LLM: GPT-4o-Mini]
-        C -->|3. Tool Call: find_local_users| B
+        C -->|3. Tool: query_state| B
     end
 
-    subgraph Local_Vault [Local: Private Hardware]
+    subgraph Local_Vault [Local: Private Data & State]
         B -->|4. Secure Tunnel| D[FastAPI: uv Server]
-        D -->|5. Hybrid Vector Search| E[(Postgres: pgvector)]
-        E -->|6. Top 3 Candidates| D
-        D -->|7. Profiles & Embeddings| B
+        D -->|5. Hybrid Search| E[(Postgres + pgvector)]
+        E -->|6. Filter Available + Semantic Match| D
+        D -->|7. Verified Candidates| B
     end
 
-    B -->|8. Final Decision| A
+    B -->|8. Proposed Assignment| A
+    A -->|9. Atomic Accept| D
+    D -->|10. Set Worker BUSY| E
 
 ```
 
-### 2. Local Backend Setup (`uv` + FastAPI)
+### 2. Local "Source of Truth" (Postgres + pgvector)
 
-We use `uv` for ultra-fast dependency management. The backend serves as a "Specialized Tool" for the cloud agent.
+We combine **Relational State** (Availability) with **Vector Search** (Skills). This prevents the Agent from assigning a worker who is already busy.
 
-**Installation (Local):**
-
-```bash
-# Initialize with uv
-mkdir backend && cd backend
-uv init
-uv add fastapi uvicorn pgvector psycopg[binary] openai pydantic-settings
-
-```
-
-**Local Vector Schema:**
+**SQL Schema:**
 
 ```sql
--- Enable locally
 CREATE EXTENSION IF NOT EXISTS vector;
 
-CREATE TABLE users (
+-- Workers Table: Semantic Skills + Real-time Status
+CREATE TABLE workers (
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
-    skills TEXT[],
-    profile_embedding vector(1536) -- Managed locally for privacy
+    skills_embedding vector(1536),
+    status TEXT DEFAULT 'available', -- 'available', 'busy', 'offline'
+    last_updated TIMESTAMP DEFAULT NOW()
+);
+
+-- Tasks Table: Tracking assignments and preventing race conditions
+CREATE TABLE tasks (
+    id SERIAL PRIMARY KEY,
+    description TEXT,
+    required_skills TEXT,
+    status TEXT DEFAULT 'open', -- 'open', 'assigned', 'completed'
+    assigned_worker_id INTEGER REFERENCES workers(id)
 );
 
 ```
 
----
+### 3. The "Vault" API (FastAPI + Pydantic AI)
 
-### 3. Frontend Orchestration (Vercel AI SDK)
+We use **Pydantic AI** tools to allow the Agent to "see" inside the local database.
 
-The frontend on Vercel acts as the "Brain." It uses the `maxSteps` feature to "loop": it calls your local machine, gets the users, and then renders the final recommendation.
+**Hybrid Search Logic:**
 
-**Orchestration Logic:**
-
-```typescript
-// Vercel Edge Function
-export const POST = async ({ request }) => {
-  return streamText({
-    model: openai('gpt-4o-mini'),
-    maxSteps: 5,
-    tools: {
-      searchLocalVault: tool({
-        description: 'Query the local pgvector database for matching users',
-        execute: async ({ embedding }) => {
-          const res = await fetch('YOUR_TUNNEL_URL/search-users', { ... });
-          return res.json();
-        }
-      })
-    }
-  });
-};
+```python
+@agent.tool
+async def get_available_candidates(task_embedding: list[float]):
+    """
+    Finds the top 3 available workers using Hybrid Search.
+    Filters by 'available' status in Postgres BEFORE vector similarity.
+    """
+    # SQL: SELECT id, name FROM workers
+    #      WHERE status = 'available'
+    #      ORDER BY skills_embedding <=> :task_embedding LIMIT 3
+    return candidates
 
 ```
 
-### 4. Hybrid Optimization Strategy
+### 4. Critical Design Principles
 
-| Strategy           | Implementation                                  | Benefit                                                           |
-| ------------------ | ----------------------------------------------- | ----------------------------------------------------------------- |
-| **Privacy Vault**  | Keep `pgvector` and raw bios on Local Postgres. | **Security:** Sensitive data never lives on cloud servers.        |
-| **uv Environment** | Use `uv` to manage local Python dependencies.   | **Speed:** Instant startup and reproducible environments.         |
-| **Tool Calling**   | LLM uses `find_local_users` as a specific tool. | **Precision:** The LLM only sees the data it explicitly asks for. |
-| **Edge Reasoning** | Host Agent on Vercel Edge.                      | **Latency:** Final UI rendering happens closest to the user.      |
+| Strategy            | Implementation                                                  | Benefit                                                                                |
+| ------------------- | --------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| **Hybrid Search**   | Filter `status = 'available'` in SQL _before_ the vector match. | **Precision:** Prevents the LLM from hallucinating assignments for busy workers.       |
+| **Atomic Claiming** | `UPDATE tasks SET worker_id = X WHERE worker_id IS NULL`.       | **Safety:** Prevents "Race Conditions" where two workers claim the same task.          |
+| **State Awareness** | Agent must call `get_available_candidates` tool every time.     | **Real-time:** Ensures the Agent uses the latest updates before generating a response. |
+| **Local Vault**     | All PII (Names, Bios, Skill vectors) stays on local hardware.   | **Privacy:** Only minimal candidate IDs are sent to the Cloud LLM.                     |
+
+### 5. Setup Instructions
+
+**1. Local Infrastructure (`uv`):**
+
+```bash
+mkdir backend && cd backend
+uv init
+uv add fastapi uvicorn pgvector psycopg[binary] pydantic-ai
+# Run local Postgres with pgvector (Docker)
+docker run --name local-vdb -e POSTGRES_PASSWORD=pass -p 5432:5432 -d pgvector/pgvector:pg17
+
+```
+
+**2. Vercel Deployment:**
+
+- Deploy SvelteKit to Vercel.
+- Use **ngrok** or **Cloudflare Tunnel** to point `LOCAL_VAULT_URL` to your FastAPI server.
+- Configure `maxSteps: 5` in the Vercel AI SDK to allow the Agent to perform the "Search → Reason → Assign" loop.
+
+### 6. User Experience Flow
+
+1. **Client** posts a task through SvelteKit.
+2. **Agent** (Vercel) queries **Local Vault** for the best _available_ matches.
+3. **Agent** presents the top match to the **Worker**.
+4. **Worker** clicks "Accept" $\rightarrow$ **FastAPI** atomically marks worker as `busy` and task as `assigned`.
