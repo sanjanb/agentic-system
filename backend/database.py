@@ -5,7 +5,8 @@ from pgvector.psycopg import register_vector
 DATABASE_URL = "postgresql://dev_user:dev_password@localhost:5432/task_db"
 
 def get_conn():
-    conn = psycopg.connect(DATABASE_URL, autocommit=True)
+    # autocommit=False (default) is required for `with conn:` transaction blocks
+    conn = psycopg.connect(DATABASE_URL)
     register_vector(conn)
     return conn
 
