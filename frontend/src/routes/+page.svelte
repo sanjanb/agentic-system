@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { useChat } from 'ai/svelte';
+  import { useChat } from '@ai-sdk/svelte';
 
   // useChat handles the streaming and tool-call state automatically
   const { messages, input, handleSubmit, isLoading } = useChat();

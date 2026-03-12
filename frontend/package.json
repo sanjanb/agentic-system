@@ -24,6 +24,7 @@
 	},
 	"dependencies": {
 		"@ai-sdk/openai": "^3.0.41",
+		"@ai-sdk/svelte": "^4.0.116",
 		"ai": "^6.0.116",
 		"lucide-svelte": "^0.577.0",
 		"zod": "^4.3.6"
