@@ -1,3 +1,12 @@
+import sys
+import os
+from pathlib import Path
+
+# Ensure backend package dir is on sys.path so `import app` works when cwd is project root
+BASE_DIR = str(Path(__file__).parent.resolve())
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import psycopg
