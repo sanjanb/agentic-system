@@ -29,7 +29,7 @@ copy .env.example .env
 docker compose up -d
 
 # 5. Create schema (first time only)
-docker exec -i agentic-system-db-1 psql -U postgres -c "
+docker exec -i local-vault-vdb psql -U dev_user -d task_db -c "
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE IF NOT EXISTS workers (
   id SERIAL PRIMARY KEY,
@@ -94,6 +94,10 @@ Copy the `https://*.trycloudflare.com` URL from the output and set it as `PUBLIC
 | ------ | --------------- | -------------------------------------------------------------------- |
 | `POST` | `/tasks/match`  | Embed description, return top available workers by similarity        |
 | `POST` | `/tasks/claim`  | Atomically assign a worker to a task (returns 409 on race condition) |
+| `POST` | `/tasks/dispatch` | Create and assign task atomically                                    |
+| `GET`  | `/workers`      | List workers for admin/update UI                                     |
+| `POST` | `/workers/update` | Update worker text and trigger embedding regeneration               |
+| `GET`  | `/workers/query` | Natural-language retrieval against worker embeddings                 |
 | `POST` | `/search-users` | Raw vector search (no availability filter)                           |
 
 ## File Overview
