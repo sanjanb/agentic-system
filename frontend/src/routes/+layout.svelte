@@ -14,7 +14,7 @@
 
 	<footer>
 		<p>
-			visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to learn about SvelteKit
+			© 2026 agentic-system. Built with SvelteKit & FastAPI. Distributed under the MIT License.
 		</p>
 	</footer>
 </div>
