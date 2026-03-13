@@ -11,12 +11,10 @@ services:
       - POSTGRES_PASSWORD=dev_password
       - POSTGRES_DB=task_db
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ../postgres_data:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U dev_user -d task_db"]
       interval: 5s
       timeout: 5s
       retries: 5
 
-volumes:
-  postgres_data:
