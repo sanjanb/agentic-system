@@ -10,13 +10,12 @@
     status: string;
   };
 
-  const workers = (data.workers ?? []) as Worker[];
-
-  let selectedWorkerId = $state(workers[0]?.id ?? 1);
-  let name = $state(workers[0]?.name ?? '');
-  let bio = $state(workers[0]?.bio ?? '');
+  let selectedWorkerId = $state(((data.workers ?? []) as Worker[])[0]?.id ?? 1);
+  let name = $state(((data.workers ?? []) as Worker[])[0]?.name ?? '');
+  let bio = $state(((data.workers ?? []) as Worker[])[0]?.bio ?? '');
 
   $effect(() => {
+    const workers = (data.workers ?? []) as Worker[];
     const selected = workers.find((worker) => worker.id === Number(selectedWorkerId));
     if (selected) {
       name = selected.name;
@@ -37,7 +36,7 @@
     <label>
       Worker
       <select name="worker_id" bind:value={selectedWorkerId}>
-        {#each workers as worker}
+        {#each (data.workers ?? []) as worker}
           <option value={worker.id}>{worker.name} ({worker.status})</option>
         {/each}
       </select>
