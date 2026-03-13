@@ -4,10 +4,30 @@ from pgvector.psycopg import register_vector
 
 DATABASE_URL = "postgresql://dev_user:dev_password@localhost:5432/task_db"
 
+
 def get_conn():
     # autocommit=False (default) is required for `with conn:` transaction blocks
     conn = psycopg.connect(DATABASE_URL)
-    register_vector(conn)
+
+    try:
+        register_vector(conn)
+    except psycopg.ProgrammingError as exc:
+        # Most likely the `vector` extension hasn't been created in the database yet.
+        msg = str(exc)
+        if 'vector type not found' in msg or 'vector type' in msg:
+            help_msg = (
+                "pgvector extension not found in the database.\n"
+                "Please create the extension in your Postgres instance and restart the server.\n"
+                "If you're using the provided Docker Compose, run:\n"
+                "  docker exec -i local-vault-vdb psql -U dev_user -d task_db -c \"CREATE EXTENSION IF NOT EXISTS vector;\"\n"
+                "Or connect to your DB and run: CREATE EXTENSION IF NOT EXISTS vector;\n"
+            )
+            conn.close()
+            raise RuntimeError(help_msg) from exc
+        # If it's a different programming error, re-raise
+        conn.close()
+        raise
+
     return conn
 
 def claim_task_atomically(task_id: int, worker_id: int):
