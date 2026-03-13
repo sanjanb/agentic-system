@@ -34,7 +34,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 CREATE TABLE IF NOT EXISTS workers (
   id SERIAL PRIMARY KEY,
   name TEXT NOT NULL,
-  skills TEXT,
+  bio TEXT,
   location TEXT,
   status TEXT DEFAULT 'available',
   skills_embedding vector(384)
