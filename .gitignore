@@ -40,3 +40,4 @@ tmp/
 
 #custom
 docs/
+postgres_data/
