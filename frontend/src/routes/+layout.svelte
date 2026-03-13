@@ -15,9 +15,15 @@
 	<footer class="mt-auto py-6 text-center text-sm text-gray-500 border-t border-gray-200">
 		<div class="container mx-auto">
 			<p>© 2026 Agentic-System. All rights reserved.</p>
-			<p class="mt-auto text-xs text-gray-400 ">
-			Local Vault Synced: {new Date().toLocaleDateString()}
-			</p>
+			<div class="flex items-center justify-center gap-2 mt-1">
+				<span class="relative flex h-2 w-2">
+					<span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+					<span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+				</span>
+				<p class="text-xs text-gray-400">
+					Vault Online - Last Synced: {new Date().toLocaleDateString()}
+				</p>
+			</div>
 		</div>
 	</footer>
 </div>
