@@ -90,15 +90,15 @@ Copy the `https://*.trycloudflare.com` URL from the output and set it as `PUBLIC
 
 ## API Endpoints
 
-| Method | Path            | Description                                                          |
-| ------ | --------------- | -------------------------------------------------------------------- |
-| `POST` | `/tasks/match`  | Embed description, return top available workers by similarity        |
-| `POST` | `/tasks/claim`  | Atomically assign a worker to a task (returns 409 on race condition) |
+| Method | Path              | Description                                                          |
+| ------ | ----------------- | -------------------------------------------------------------------- |
+| `POST` | `/tasks/match`    | Embed description, return top available workers by similarity        |
+| `POST` | `/tasks/claim`    | Atomically assign a worker to a task (returns 409 on race condition) |
 | `POST` | `/tasks/dispatch` | Create and assign task atomically                                    |
-| `GET`  | `/workers`      | List workers for admin/update UI                                     |
-| `POST` | `/workers/update` | Update worker text and trigger embedding regeneration               |
-| `GET`  | `/workers/query` | Natural-language retrieval against worker embeddings                 |
-| `POST` | `/search-users` | Raw vector search (no availability filter)                           |
+| `GET`  | `/workers`        | List workers for admin/update UI                                     |
+| `POST` | `/workers/update` | Update worker text and trigger embedding regeneration                |
+| `GET`  | `/workers/query`  | Natural-language retrieval against worker embeddings                 |
+| `POST` | `/search-users`   | Raw vector search (no availability filter)                           |
 
 ## File Overview
 

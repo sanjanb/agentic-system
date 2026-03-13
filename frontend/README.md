@@ -60,9 +60,9 @@ vercel --prod
 
 ## Additional Pages
 
-| Route            | Purpose |
-| ---------------- | ------- |
-| `/update-worker` | Form page to edit worker details and trigger embedding re-sync |
+| Route            | Purpose                                                           |
+| ---------------- | ----------------------------------------------------------------- |
+| `/update-worker` | Form page to edit worker details and trigger embedding re-sync    |
 | `/query`         | Natural-language query page for RAG-style retrieval from pgvector |
 
 The AI is given these tools via the Vercel AI SDK in `src/routes/api/chat/+server.ts`. The LLM (gpt-4o-mini) reasons over the task description, calls the tools, and renders a Candidate Card before asking for confirmation.
