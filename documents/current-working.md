@@ -78,3 +78,34 @@ sequenceDiagram
 - Cost: embeddings are computed locally (no per-request paid embeddings).
 - Freshness & safety: we filter by `status='available'` before similarity to avoid suggesting busy workers; atomic DB transactions avoid race conditions.
 - Explainability: LLM summarizes actual returned records rather than inventing them.
+
+## Cost
+### **1. Estimated Monthly Cost Breakdown (Projections)**
+
+If you host this as a unified system (FastAPI + Postgres in Docker) on a Virtual Private Server (VPS), here is what you are looking at:
+
+| Component | Minimum Req. | Estimated Cost (Monthly) | Reason |
+| --- | --- | --- | --- |
+| **Compute (VPS)** | 2 vCPU / 4GB RAM | **$20 – $40** | The BGE-Small model and Postgres need at least 4GB to run smoothly without crashing. |
+| **Storage** | 20GB SSD | **$2 – $5** | Vector data is small, but the Docker images and OS take up space. |
+| **Bandwidth** | 1TB Transfer | **$0 – $5** | Standard web traffic; usually included in VPS plans. |
+| **LLM Tokens** | (Vercel/OpenAI) | **$5 – $15** | Depends on how many "Chat" queries you run. |
+| **Total** |  | **$27 – $65 / month** |  |
+
+### **2. Recommended Hosting Providers**
+
+For a RAG system using Docker and `pgvector`, you want a provider that gives you "Raw" control over the machine:
+
+* **DigitalOcean (Basic Droplet):** Roughly **$24/mo** for 2 vCPU and 4GB RAM. Very reliable and easy to set up with Docker.
+* **Hetzner (Cloud):** The "Budget King." You can get 4GB RAM for around **$6 – $10/mo**. Best performance-to-price ratio for 2026.
+* **AWS (Lightsail or EC2):** Roughly **$40/mo**. More expensive, but scales better if you plan to add millions of workers.
+
+
+### **3. Cost Optimization Strategies**
+
+Because your RAG system is **local-first**, you can save money that others spend on "Vector-as-a-Service" (like Pinecone):
+
+1. **Avoid Managed Databases:** Do not use AWS RDS or Managed Postgres. They start at $60/mo. Stick to **Postgres inside Docker** on your VPS to save ~$50/mo.
+2. **Model Quantization:** Use a "Quantized" version of your embedding model. This reduces the RAM requirement, potentially letting you drop down to a $12/mo server.
+3. **The "Idle" Strategy:** If this is for internal use (Internship/Dev), you can use a "Spot Instance" which is 70% cheaper but can be turned off by the provider at any time.
+
