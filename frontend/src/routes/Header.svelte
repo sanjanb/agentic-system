@@ -20,6 +20,12 @@
 			<li aria-current={page.url.pathname === '/' ? 'page' : undefined}>
 				<a href={resolve('/')}>Home</a>
 			</li>
+			<li aria-current={page.url.pathname === '/update-worker' ? 'page' : undefined}>
+				<a href={resolve('/update-worker')}>Update Worker</a>
+			</li>
+			<li aria-current={page.url.pathname === '/query' ? 'page' : undefined}>
+				<a href={resolve('/query')}>RAG Query</a>
+			</li>
 			<li aria-current={page.url.pathname === '/about' ? 'page' : undefined}>
 				<a href={resolve('/about')}>About</a>
 			</li>
