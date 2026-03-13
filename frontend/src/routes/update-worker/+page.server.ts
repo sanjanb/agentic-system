@@ -1,6 +1,6 @@
-import { env } from '$env/dynamic/private';
-import { fail } from '@sveltejs/kit';
-import type { Actions, PageServerLoad } from './$types';
+import { env } from "$env/dynamic/private";
+import { fail } from "@sveltejs/kit";
+import type { Actions, PageServerLoad } from "./$types";
 
 type Worker = {
   id: number;
@@ -12,7 +12,7 @@ type Worker = {
 function getVaultUrl() {
   const vaultUrl = env.LOCAL_VAULT_URL;
   if (!vaultUrl) {
-    throw new Error('LOCAL_VAULT_URL is not configured on the server.');
+    throw new Error("LOCAL_VAULT_URL is not configured on the server.");
   }
   return vaultUrl;
 }
@@ -25,7 +25,7 @@ export const load: PageServerLoad = async ({ fetch }) => {
     if (!res.ok) {
       return {
         workers: [] as Worker[],
-        loadError: `Could not load workers (${res.status}).`
+        loadError: `Could not load workers (${res.status}).`,
       };
     }
 
@@ -34,7 +34,7 @@ export const load: PageServerLoad = async ({ fetch }) => {
   } catch {
     return {
       workers: [] as Worker[],
-      loadError: 'Could not reach local vault API.'
+      loadError: "Could not reach local vault API.",
     };
   }
 };
@@ -42,14 +42,14 @@ export const load: PageServerLoad = async ({ fetch }) => {
 export const actions: Actions = {
   update: async ({ request, fetch }) => {
     const formData = await request.formData();
-    const workerId = Number(formData.get('worker_id'));
-    const name = String(formData.get('name') ?? '').trim();
-    const bio = String(formData.get('bio') ?? '').trim();
+    const workerId = Number(formData.get("worker_id"));
+    const name = String(formData.get("name") ?? "").trim();
+    const bio = String(formData.get("bio") ?? "").trim();
 
     if (!workerId || !name || !bio) {
       return fail(400, {
         success: false,
-        message: 'Worker ID, full name, and bio are required.'
+        message: "Worker ID, full name, and bio are required.",
       });
     }
 
@@ -59,25 +59,25 @@ export const actions: Actions = {
     } catch (error) {
       return fail(500, {
         success: false,
-        message: 'LOCAL_VAULT_URL is missing on the server.'
+        message: "LOCAL_VAULT_URL is missing on the server.",
       });
     }
 
     let res: Response;
     try {
       res = await fetch(`${vaultUrl}/workers/update`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           worker_id: workerId,
           name,
-          bio
-        })
+          bio,
+        }),
       });
     } catch {
       return fail(502, {
         success: false,
-        message: 'Could not reach local vault API.'
+        message: "Could not reach local vault API.",
       });
     }
 
@@ -90,24 +90,24 @@ export const actions: Actions = {
 
     if (!res.ok) {
       const errorMessage =
-        typeof payload === 'object' && payload && 'detail' in payload
+        typeof payload === "object" && payload && "detail" in payload
           ? String((payload as { detail: string }).detail)
           : `Update failed with status ${res.status}.`;
 
       return fail(res.status, {
         success: false,
-        message: errorMessage
+        message: errorMessage,
       });
     }
 
     const message =
-      typeof payload === 'object' && payload && 'message' in payload
+      typeof payload === "object" && payload && "message" in payload
         ? String((payload as { message: string }).message)
-        : 'Worker updated. Embedding sync started.';
+        : "Worker updated. Embedding sync started.";
 
     return {
       success: true,
-      message
+      message,
     };
-  }
+  },
 };
