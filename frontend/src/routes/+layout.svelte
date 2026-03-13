@@ -12,10 +12,13 @@
 		{@render children()}
 	</main>
 
-	<footer>
-		<p>
-			© 2026 agentic-system. Built with SvelteKit & FastAPI. Distributed under the MIT License.
-		</p>
+	<footer class="mt-auto py-6 text-center text-sm text-gray-500 border-t border-gray-200">
+		<div class="container mx-auto">
+			<p>© 2026 Agentic-System. All rights reserved.</p>
+			<p class="mt-auto text-xs text-gray-400 ">
+			Local Vault Synced: {new Date().toLocaleDateString()}
+			</p>
+		</div>
 	</footer>
 </div>
 
