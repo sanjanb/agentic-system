@@ -40,7 +40,8 @@ sequenceDiagram
     U->>V: Clicks "Confirm Assignment"
     V->>T: POST /tasks/dispatch
     T->>F: Forward Dispatch Request
-    F->>D: BEGIN TRANSACTION; Update status='assigned'
+    F->>D: BEGIN TRANSACTION
+    F->>D: Mark task as assigned
     D-->>F: COMMIT (Success/Fail)
     F-->>U: Show Success Toast
 
